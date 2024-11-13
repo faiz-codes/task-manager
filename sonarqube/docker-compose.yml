@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-databse:5432/sonar
+      SONAR_JDBC_USERNAME: sonar 
+      SONAR_JDBC_PASSWORD: LizardApps01
+      SONARQUBE_WEB_CONTEXT: /sonar
+    networks:
+      - sonarnet
+    depends_on:
+      - sonar-databse
+
+  sonar-databse:
+    image: 'postgres:latest'
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: LizardApps01
+      POSTGRES_DB: sonar
+    ports:
+      - 5432:5432
+    networks:
+      - sonarnet
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'sonar', '-d', 'sonar']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - sonar-databse-data:/var/lib/postgresql/data
+
+networks:
+  sonarnet:
+    driver: bridge
+
+volumes:
+   sonar-databse-data:

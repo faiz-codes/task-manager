@@ -1,0 +1,86 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=khjgvbhn23o8ryi834ierufhwiuguygqwd
+    ports:
+      - 5432:5432
+    volumes: 
+      - ./docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+      - ./postgres:/var/lib/postgresql/data
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - 8025:8025
+      - 1025:1025
+
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:6.0
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - 3567:3567
+    environment:
+      - POSTGRESQL_CONNECTION_URI="postgres://supertokens:khjgvbhn23o8ryi834ierufhwiuguygqwd@postgres:5432/supertokens"
+
+  task-service:
+    build:
+      context: ./tasks
+      dockerfile: DockerFile
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - 4001:4000
+    environment:
+      - POSTGRESQL_CONNECTION_URI=postgresql://admin:khjgvbhn23o8ryi834ierufhwiuguygqwd@postgres:5432/tasks
+    volumes:
+      - ./tasks/src:/app/src
+    command: "npm run start:dev"
+
+  user-service:
+    build:
+      context: ./users
+      dockerfile: DockerFile
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - 4002:4000
+    environment:
+      - POSTGRESQL_CONNECTION_URI=postgres://admin:khjgvbhn23o8ryi834ierufhwiuguygqwd@postgres:5432/users
+    volumes:
+      - ./users/src:/app/src
+    command: "npm run start:dev"
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: DockerFile
+    restart: always
+    ports:
+      - 4000:4000
+    depends_on:
+      - supertokens
+      - task-service
+      - user-service
+    environment:
+      - POSTGRESQL_CONNECTION_URI=postgres://gateway:khjgvbhn23o8ryi834ierufhwiuguygqwd@postgres:5432/gateway
+      - TASK_API_URL=http://task-service:4000/graphql/
+      - USER_API_URL=http://user-service:4000/graphql/
+      - SUPERTOKENS_CORE_URL=http://supertokens:3567
+      - EMAIL_SERVER=smtp://mailpit:1025
+    volumes:
+      - ./gateway/src:/app/src
+    command: "npm run start:dev"
+
+volumes:
+  db:
+    driver: local
