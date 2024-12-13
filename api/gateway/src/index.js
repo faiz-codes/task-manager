@@ -32,7 +32,7 @@ const startServer = async () => {
       return new RemoteGraphQLDataSource({
         url,
         willSendRequest({ request, context }) {
-          request.http.headers.set("user-id", "user-id");
+          request.http.headers.set("user-id", context.userId);
           request.http.headers.set("permissions", context.permissions);
           request.http.headers.set("roles", context.roles);
         },
